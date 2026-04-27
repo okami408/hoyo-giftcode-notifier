@@ -42,15 +42,14 @@ export async function filterNewCodes(
   const r = getRedis();
   const key = storeKey(gameId);
 
-  // 各コードがSetに存在するか確認
-  const checks = await Promise.all(
-    codes.map(async (code) => {
-      const exists = await r.sismember(key, code);
-      return { code, exists: exists === 1 };
-    })
-  );
+  // pipelineで一括チェック（N回のリクエストを1回に削減）
+  const pipeline = r.pipeline();
+  for (const code of codes) {
+    pipeline.sismember(key, code);
+  }
+  const results = await pipeline.exec<number[]>();
 
-  return checks.filter((c) => !c.exists).map((c) => c.code);
+  return codes.filter((_, i) => results[i] === 0);
 }
 
 /**

@@ -30,11 +30,6 @@ export interface GameConfig {
   sources: ScrapingSource[];
 }
 
-/** スクレイピング結果 */
-export interface ScrapeResult {
-  gameId: string;
-  codes: string[];
-}
 
 /** 通知対象 */
 export interface NotificationPayload {

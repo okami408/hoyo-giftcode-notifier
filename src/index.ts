@@ -5,6 +5,21 @@ import { sendDiscordNotification } from "./notifier/discord.js";
 import type { GameConfig, ScrapingSource } from "./types.js";
 
 /**
+ * 必須環境変数の起動時バリデーション
+ */
+function validateEnv(): void {
+  const required = [
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "DISCORD_WEBHOOK_URL",
+  ];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(`必須環境変数が未設定です: ${missing.join(", ")}`);
+  }
+}
+
+/**
  * スクレイパーの種別に応じたスクレイピング関数を呼び出す
  */
 async function scrape(source: ScrapingSource): Promise<string[]> {
@@ -70,6 +85,7 @@ async function processGame(game: GameConfig): Promise<void> {
  * メインエントリーポイント
  */
 async function main(): Promise<void> {
+  validateEnv();
   console.log("🔍 HoYoverse ギフトコード通知システムを開始します");
   console.log(`📋 登録ゲーム数: ${gameRegistry.length}`);
 
