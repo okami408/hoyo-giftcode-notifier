@@ -24,8 +24,7 @@ export async function sendDiscordNotification(
     .join("\n");
 
   const message = [
-    `コードを取得しました`,
-    `${game.emoji}${game.name}の新しいギフトコードが${newCodes.length}件見つかりました 🎁`,
+    `マスター、${game.emoji}${game.name}の新しいギフトコードが${newCodes.length}件見つかりました 🎁`,
     ``,
     codeLinks,
   ].join("\n");
