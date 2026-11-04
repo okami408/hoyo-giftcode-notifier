@@ -3,7 +3,7 @@ import type { GameConfig } from "../types";
 export const genshinConfig: GameConfig = {
 	id: "genshin",
 	name: "原神",
-	emoji: "🌬️✨",
+	emoji: "✨",
 	giftUrlTemplate: "https://genshin.hoyoverse.com/ja/gift?code={code}",
 	sources: [
 		{

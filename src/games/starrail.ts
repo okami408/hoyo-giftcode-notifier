@@ -3,7 +3,7 @@ import type { GameConfig } from "../types";
 export const starrailConfig: GameConfig = {
 	id: "starrail",
 	name: "崩壊：スターレイル",
-	emoji: "🚂✨",
+	emoji: "🚂",
 	giftUrlTemplate: "https://hsr.hoyoverse.com/gift?code={code}",
 	sources: [
 		{

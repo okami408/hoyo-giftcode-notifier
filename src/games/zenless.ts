@@ -3,7 +3,7 @@ import type { GameConfig } from "../types";
 export const zenlessConfig: GameConfig = {
 	id: "zenless",
 	name: "ゼンレスゾーンゼロ",
-	emoji: "📺⚡",
+	emoji: "💤",
 	giftUrlTemplate: "https://zenless.hoyoverse.com/redemption/gift?code={code}",
 	sources: [
 		{

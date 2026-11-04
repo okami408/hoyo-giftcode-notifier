@@ -16,7 +16,7 @@ async function post(webhookUrl: string, content: string): Promise<void> {
 export async function sendCodeNotification(webhookUrl: string, game: GameConfig, newCodes: string[]): Promise<void> {
 	const links = newCodes.map((code) => `・${game.giftUrlTemplate.replace("{code}", code)}`).join("\n");
 	const message = [
-		`マスター、${game.emoji}${game.name}の新しいギフトコードが${newCodes.length}件見つかりました 🎁`,
+		`🧿<マスター、${game.emoji}${game.name}の新しいギフトコードが${newCodes.length}件見つかりました 🎁`,
 		"",
 		links,
 	].join("\n");
