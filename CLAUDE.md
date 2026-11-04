@@ -8,7 +8,7 @@ HoYoverse 系ゲームのギフトコードをまとめサイトから取得し�
 ## コマンド
 - 型チェック: `npx tsc --noEmit`
 - テスト: `npx vitest run`
-- ローカル実行: `npx wrangler dev --test-scheduled` → `curl "http://localhost:8787/__scheduled?cron=0+*/3+*+*+*"`
+- ローカル実行: `npx wrangler dev --test-scheduled` → `curl "http://localhost:8787/__scheduled?cron=17+*+*+*+*"`
 - 型の再生成（wrangler.jsonc や secret を変えた後）: `npx wrangler types`
 - デプロイ: `npx wrangler deploy`
 

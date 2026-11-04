@@ -10,7 +10,7 @@
 
 ## 現在の構成
 - 実行: Cloudflare Workers `hoyo-code-notifier` の `scheduled` ハンドラ
-- Cron: `0 */3 * * *`（3時間おき、UTC基準）※旧システムは4時間おき
+- Cron: `17 * * * *`（毎時17分、1時間おき）※旧システムは4時間おき
 - ストア: Workers KV（binding `CODES`）
   - `notified:<gameId>:<code>` … 通知済みコード（値は通知日時 or `migrated-from-upstash`）
   - `health:<gameId>:zeroStreak` … 取得0件の連続回数
@@ -29,7 +29,7 @@
 
 ### 設計上の決まりごと
 - Discord 通知に失敗したら KV に保存しない（次回リトライさせるため）
-- 0件が `ZERO_STREAK_ALERT`（=8回、約1日）続いたら Discord に1回だけ警告
+- 0件が `ZERO_STREAK_ALERT`（=24回、約1日）続いたら Discord に1回だけ警告
 - KV への書き込みは値が変わる時だけ（無料枠の書き込み回数節約）
 - 本番の Webhook URL はコード・リポジトリに書かない。ローカルは `.dev.vars`（gitignore済み）
 

@@ -4,8 +4,8 @@ import { filterNewCodes, markAsNotified, updateZeroStreak } from "./store/kv";
 import { sendCodeNotification, sendHealthWarning } from "./notifier/discord";
 import type { GameConfig, ScrapingSource } from "./types";
 
-/** この回数だけ連続で0件だったらDiscordに警告（3時間おきなら約1日） */
-const ZERO_STREAK_ALERT = 8;
+/** この回数だけ連続で0件だったらDiscordに警告（1時間おきなら約1日） */
+const ZERO_STREAK_ALERT = 24;
 
 async function scrape(source: ScrapingSource): Promise<string[]> {
 	switch (source.type) {
