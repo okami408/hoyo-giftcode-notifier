@@ -3,12 +3,14 @@ import type { ScrapingSource } from "../types";
 /**
  * HTML文字列からコードを抽出する（テストしやすいように分離）
  * Workersにはcheerioが無いので、ページ全体に正規表現をかける
+ * HTMLコメント内（画面に出ない古い記載など）は対象外にする
  */
 export function extractCodes(html: string, pattern: RegExp): string[] {
 	const flags = pattern.flags.includes("g") ? pattern.flags : pattern.flags + "g";
 	const re = new RegExp(pattern.source, flags);
+	const visible = html.replace(/<!--[\s\S]*?-->/g, "");
 	const codes = new Set<string>();
-	for (const m of html.matchAll(re)) {
+	for (const m of visible.matchAll(re)) {
 		if (m[1]) codes.add(m[1]);
 	}
 	return [...codes];

@@ -16,8 +16,8 @@
   - `notified:<gameId>:<code>` … 通知済みコード（値は通知日時）
   - `health:<gameId>:zeroStreak` … 取得0件の連続回数
 - 通知: Discord Webhook（secret `DISCORD_WEBHOOK_URL`）
-- 取得元: GameWith のまとめ記事を fetch → 正規表現で `?code=XXXX` を抽出（Workers に cheerio が無いため）
-- 対象ゲーム: 崩壊：スターレイル（starrail）、ゼンレスゾーンゼロ（zenless）
+- 取得元: GameWith のまとめ記事を fetch → 正規表現で `?code=XXXX` を抽出（Workers に cheerio が無いため）。HTML コメント内は除外（原神の記事に古いコードがコメントで残っているため）
+- 対象ゲーム: 崩壊：スターレイル（starrail）、ゼンレスゾーンゼロ（zenless）、原神（genshin）
 
 ### ファイル
 - `src/index.ts` … エントリ。ゲームごとに 取得 → 0件監視 → 未通知判定 → 通知 → 保存
@@ -25,7 +25,7 @@
 - `src/scraper/gamewith.ts` … `extractCodes()`（純粋関数）と `scrapeGameWithCodes()`
 - `src/store/kv.ts` … KV の読み書き
 - `src/notifier/discord.ts` … コード通知と死活監視の警告
-- `test/index.spec.ts` … `extractCodes` のテスト（vitest）
+- `test/index.spec.ts` … `extractCodes` のテスト（vitest、5件）
 - `scripts/export-upstash.mjs` … Upstash → KV 移行用。移行はスキップしたので不要（削除してよい）
 
 ### 設計上の決まりごと
@@ -55,14 +55,15 @@
 - [x] Upstash → KV のデータ移行 → **スキップ**（Upstash DB がアーカイブ済みでアクセス不可。初回実行で掲載中コードがまとめて通知されるのを許容）
 - [x] Cron を1時間おき（毎時17分）に変更
 - [x] 本番デプロイ（2026-11-04、Version 36062680）
-- [ ] 本番の初回 Cron 実行をログで確認（GameWith が Cloudflare の IP から取れるか）
+- [x] 本番の初回 Cron 実行を確認（2026-11-04 23:17 JST、スタレ10件・ゼンゼロ5件を通知。Cloudflare の IP からも GameWith 取得OK）
+- [x] 原神を追加（ローカルで6件取得を確認）
+- [ ] 原神を本番デプロイ・初回通知を確認
 - [ ] 旧システムの停止・片付け
 
 ## 次にやること
-1. **本番の動作確認**
-   - ダッシュボードの Workers & Pages → hoyo-code-notifier → Logs で、毎時17分の実行を確認
-   - 各ゲームで `📄 ... → N件` が出て、Discord に通知が来ればOK
-   - **要確認**: ローカルの取得は自宅回線からだった。Cloudflare の IP から GameWith が 403 等になる場合は取得元の見直しが必要
+1. **原神の本番反映**
+   - `npx wrangler deploy` → 次の毎時17分に原神の掲載中コード（6件）がまとめて通知される
+   - `npx wrangler tail` かダッシュボードの Logs で確認
 2. **ブランチの push と main へのマージ**
    - `git push -u origin migrate-to-workers` → PR を作って main にマージ（旧ワークフローのファイルが main から消える）
 3. **旧システムの停止**
@@ -71,7 +72,6 @@
    - Upstash のDB（アーカイブ済み）はコンソールから削除してよい
 4. **改善候補（任意）**
    - 取得元を2つにする（Game8 など）。`sources` に足せば結果は合算される
-   - 原神を追加するか検討（ユーザーに確認）
    - `fetch` ハンドラは現状メッセージを返すだけ
 
 ## 環境メモ
