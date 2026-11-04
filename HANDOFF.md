@@ -5,14 +5,15 @@
 ## 背景
 - 旧システム: このリポジトリの migrate-to-workers 以前の履歴（main の 346008d まで）（GitHub Actions + Upstash Redis + Discord Webhook）
 - 2026-06-27 を最後に停止。原因は GitHub Actions の schedule が「60日間リポジトリに動きがない」ため自動無効化されたこと（コード自体は正常だった）
-- 再発防止のため Cloudflare Workers（Cron Triggers）+ Workers KV に移行中
+- 再発防止のため Cloudflare Workers（Cron Triggers）+ Workers KV に移行（2026-11-04 本番デプロイ済み）
 - 注意: 旧DBは Firebase ではなく **Upstash Redis**（Set型、キー `notified:starrail` / `notified:zenless`）
 
 ## 現在の構成
 - 実行: Cloudflare Workers `hoyo-code-notifier` の `scheduled` ハンドラ
+- 公開URLなし（`workers_dev: false`）。ただし Cron 登録にはアカウントの workers.dev サブドメインが必要（`okamibase.workers.dev` 作成済み）
 - Cron: `17 * * * *`（毎時17分、1時間おき）※旧システムは4時間おき
 - ストア: Workers KV（binding `CODES`）
-  - `notified:<gameId>:<code>` … 通知済みコード（値は通知日時 or `migrated-from-upstash`）
+  - `notified:<gameId>:<code>` … 通知済みコード（値は通知日時）
   - `health:<gameId>:zeroStreak` … 取得0件の連続回数
 - 通知: Discord Webhook（secret `DISCORD_WEBHOOK_URL`）
 - 取得元: GameWith のまとめ記事を fetch → 正規表現で `?code=XXXX` を抽出（Workers に cheerio が無いため）
@@ -25,7 +26,7 @@
 - `src/store/kv.ts` … KV の読み書き
 - `src/notifier/discord.ts` … コード通知と死活監視の警告
 - `test/index.spec.ts` … `extractCodes` のテスト（vitest）
-- `scripts/export-upstash.mjs` … Upstash → KV bulk put 用 JSON（`kv-import.json`）を書き出す
+- `scripts/export-upstash.mjs` … Upstash → KV 移行用。移行はスキップしたので不要（削除してよい）
 
 ### 設計上の決まりごと
 - Discord 通知に失敗したら KV に保存しない（次回リトライさせるため）
@@ -35,10 +36,9 @@
 
 ## リポジトリについて
 - 場所: `~/std/hoyo-giftcode-notifier`（GitHub: okami408/hoyo-giftcode-notifier）
-- ブランチ `migrate-to-workers` で旧コードを削除し、Workers 版に置き換えた（**未コミット**）
+- ブランチ `migrate-to-workers` で旧コードを削除し、Workers 版に置き換えた（コミット済み・未push・main 未マージ）
 - 旧コードは main の履歴（346008d まで）に残っている
 - 作業用に作った `~/hoyo-code-notifier` はここにコピー済み。動作確認できたら削除してよい
-- `node_modules` は削除済み。Mac で `npm install` が必要
 
 ## 進捗
 - [x] Cloudflare アカウント作成、`wrangler login`
@@ -49,28 +49,26 @@
 - [x] `.dev.vars` 作成
 - [x] 旧ソースを Workers 向けに移植、`tsc --noEmit` 通過
 - [x] ローカルで `wrangler dev --test-scheduled` 実行 → スタレ10件・ゼンゼロ5件取得、通知成功
-- [x] 旧リポジトリに統合（ブランチ migrate-to-workers、未コミット）
+- [x] 旧リポジトリに統合（ブランチ migrate-to-workers）
 - [x] `npm install` → `npx vitest run`（3件パス）
-- [ ] コミット
-- [ ] Upstash → KV のデータ移行
-- [ ] 本番デプロイと動作確認
+- [x] コミット
+- [x] Upstash → KV のデータ移行 → **スキップ**（Upstash DB がアーカイブ済みでアクセス不可。初回実行で掲載中コードがまとめて通知されるのを許容）
+- [x] Cron を1時間おき（毎時17分）に変更
+- [x] 本番デプロイ（2026-11-04、Version 36062680）
+- [ ] 本番の初回 Cron 実行をログで確認（GameWith が Cloudflare の IP から取れるか）
 - [ ] 旧システムの停止・片付け
 
 ## 次にやること
-1. **Upstash のデータ移行**
-   - 無料DBは30日以上使われないとアーカイブされる。6月以降止まっているので、アーカイブ済みの可能性が高い
-   - Upstash コンソールでDBの有無を確認 → アーカイブ済みなら新しいDBを作ってバックアップを復元
-   - `UPSTASH_REDIS_REST_URL=... UPSTASH_REDIS_REST_TOKEN=... node scripts/export-upstash.mjs`
-   - `npx wrangler kv bulk put kv-import.json --binding CODES --remote`
-   - バックアップが無い場合は、初回実行で現在掲載中のコードがまとめて通知されるだけ（致命的ではない）
-2. **本番デプロイ**
-   - `npx wrangler deploy`
-   - ダッシュボードの Workers → hoyo-code-notifier → Logs で次の Cron 実行を確認
-   - **未確認事項**: ローカルの取得は自宅回線からのアクセスだった。Cloudflare の IP から GameWith が取れるかはデプロイ後のログで要確認（403 等なら取得元の見直しが必要）
+1. **本番の動作確認**
+   - ダッシュボードの Workers & Pages → hoyo-code-notifier → Logs で、毎時17分の実行を確認
+   - 各ゲームで `📄 ... → N件` が出て、Discord に通知が来ればOK
+   - **要確認**: ローカルの取得は自宅回線からだった。Cloudflare の IP から GameWith が 403 等になる場合は取得元の見直しが必要
+2. **ブランチの push と main へのマージ**
+   - `git push -u origin migrate-to-workers` → PR を作って main にマージ（旧ワークフローのファイルが main から消える）
 3. **旧システムの停止**
    - GitHub の Actions で「Check Gift Codes」は無効のままにする（ワークフローファイルは削除済みなので、main にマージすれば消える）
    - GitHub の Secrets（UPSTASH_*、DISCORD_WEBHOOK_URL）は不要になったら削除
-   - KV 移行が済んだら Upstash のDBを削除
+   - Upstash のDB（アーカイブ済み）はコンソールから削除してよい
 4. **改善候補（任意）**
    - 取得元を2つにする（Game8 など）。`sources` に足せば結果は合算される
    - 原神を追加するか検討（ユーザーに確認）

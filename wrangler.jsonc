@@ -11,6 +11,8 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	// Cron 専用なので公開URL（workers.dev）は使わない
+	"workers_dev": false,
 	"kv_namespaces": [
 		{
 			"binding": "CODES",
