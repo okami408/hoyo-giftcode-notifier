@@ -26,7 +26,6 @@
 - `src/store/kv.ts` … KV の読み書き
 - `src/notifier/discord.ts` … コード通知と死活監視の警告
 - `test/index.spec.ts` … `extractCodes` のテスト（vitest、5件）
-- `scripts/export-upstash.mjs` … Upstash → KV 移行用。移行はスキップしたので不要（削除してよい）
 
 ### 設計上の決まりごと
 - Discord 通知に失敗したら KV に保存しない（次回リトライさせるため）
@@ -59,6 +58,8 @@
 - [x] 原神を追加（ローカルで6件取得を確認）
 - [ ] 原神を本番デプロイ・初回通知を確認
 - [ ] 旧システムの停止・片付け
+  - [x] 作業用コピー `~/hoyo-code-notifier` と移行スクリプトを削除
+  - [ ] GitHub の Secrets 削除、Upstash DB 削除（ブラウザ作業）
 
 ## 次にやること
 1. **原神の本番反映**
