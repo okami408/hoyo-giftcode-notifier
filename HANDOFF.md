@@ -5,7 +5,7 @@
 ## 背景
 - 旧システム: このリポジトリの migrate-to-workers 以前の履歴（main の 346008d まで）（GitHub Actions + Upstash Redis + Discord Webhook）
 - 2026-06-27 を最後に停止。原因は GitHub Actions の schedule が「60日間リポジトリに動きがない」ため自動無効化されたこと（コード自体は正常だった）
-- 再発防止のため Cloudflare Workers（Cron Triggers）+ Workers KV に移行（2026-11-04 本番デプロイ済み）
+- 再発防止のため Cloudflare Workers（Cron Triggers）+ Workers KV に移行（2026-11-05 移行作業すべて完了）
 - 注意: 旧DBは Firebase ではなく **Upstash Redis**（Set型、キー `notified:starrail` / `notified:zenless`）
 
 ## 現在の構成
@@ -58,24 +58,20 @@
 - [x] 本番の初回 Cron 実行を確認（2026-11-04 23:17 JST、スタレ10件・ゼンゼロ5件を通知。Cloudflare の IP からも GameWith 取得OK）
 - [x] 原神を追加（ローカルで6件取得を確認）
 - [x] 原神を本番デプロイ
-- [ ] 原神の初回通知を確認
+- [x] 原神の初回通知を確認（2026-11-05 0:17 JST、6件）
 - [x] main にマージ（PR #1）
 - [x] Workers Builds で GitHub 連携（Production branch: main）
-- [ ] 自動デプロイの初回ビルド成功を確認
+- [x] 自動デプロイの初回ビルド成功を確認（ea58e7e5）
 - [x] 旧システムの停止・片付け
   - [x] 作業用コピー `~/hoyo-code-notifier` と移行スクリプトを削除
   - [x] GitHub の Secrets 削除、Upstash DB 完全削除（2026-11-04）
 
 ## 次にやること
-1. **原神の初回通知を確認**
-   - 原神追加版は 2026-11-04 23:25 にデプロイ済み。次の毎時17分に掲載中コード（6件）がまとめて通知される
-   - 通知メッセージ変更（c92bb7e）は、手動で再デプロイしていなければ未反映。main マージ後の自動デプロイで反映される
-2. **自動デプロイの確認**
-   - ダッシュボード → hoyo-code-notifier → Deployments（Builds）で、main への push のビルドが Success になるか確認
-   - 設定: Build command `npx tsc --noEmit` / Deploy command `npx wrangler deploy`
-   - 以降は main への push ＝ 本番反映。試す変更は別ブランチで（別ブランチは preview 版のアップロードのみ）
-   - 手動の `npx wrangler deploy` は原則不要
-3. **改善候補（任意）**
+移行作業は完了。運用中の注意:
+- main への push ＝ 本番反映（Workers Builds）。試す変更は別ブランチで（別ブランチは preview 版のアップロードのみ）
+- 取得できなくなると、0件が24回（約1日）続いた時点で Discord に警告が来る。来たら GameWith の記事 URL・HTML 構造の変化を確認する
+
+**改善候補（任意）**
    - 取得元を2つにする（Game8 など）。`sources` に足せば結果は合算される
    - `fetch` ハンドラは現状メッセージを返すだけ
 
