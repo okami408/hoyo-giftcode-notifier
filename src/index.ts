@@ -1,106 +1,73 @@
-import { gameRegistry } from "./games/registry.js";
-import { scrapeGameWithCodes } from "./scraper/gamewith.js";
-import { filterNewCodes, markAsNotified } from "./store/upstash.js";
-import { sendDiscordNotification } from "./notifier/discord.js";
-import type { GameConfig, ScrapingSource } from "./types.js";
+import { gameRegistry } from "./games/registry";
+import { scrapeGameWithCodes } from "./scraper/gamewith";
+import { filterNewCodes, markAsNotified, updateZeroStreak } from "./store/kv";
+import { sendCodeNotification, sendHealthWarning } from "./notifier/discord";
+import type { GameConfig, ScrapingSource } from "./types";
 
-/**
- * 必須環境変数の起動時バリデーション
- */
-function validateEnv(): void {
-  const required = [
-    "UPSTASH_REDIS_REST_URL",
-    "UPSTASH_REDIS_REST_TOKEN",
-    "DISCORD_WEBHOOK_URL",
-  ];
-  const missing = required.filter((key) => !process.env[key]);
-  if (missing.length > 0) {
-    throw new Error(`必須環境変数が未設定です: ${missing.join(", ")}`);
-  }
-}
+/** この回数だけ連続で0件だったらDiscordに警告（1時間おきなら約1日） */
+const ZERO_STREAK_ALERT = 24;
 
-/**
- * スクレイパーの種別に応じたスクレイピング関数を呼び出す
- */
 async function scrape(source: ScrapingSource): Promise<string[]> {
-  switch (source.type) {
-    case "gamewith":
-      return scrapeGameWithCodes(source);
-    default:
-      console.warn(`Unknown scraper type: ${source.type}`);
-      return [];
-  }
+	switch (source.type) {
+		case "gamewith":
+			return scrapeGameWithCodes(source);
+		default:
+			console.warn(`Unknown scraper type: ${source.type}`);
+			return [];
+	}
 }
 
-/**
- * 1つのゲームのギフトコードをチェック → 通知するフロー
- */
-async function processGame(game: GameConfig): Promise<void> {
-  console.log(`\n🎮 [${game.name}] コードをチェック中...`);
+async function processGame(game: GameConfig, env: Env): Promise<void> {
+	console.log(`🎮 [${game.name}] コードをチェック中...`);
 
-  // 全ソースからコードを取得
-  const allCodes = new Set<string>();
-  for (const source of game.sources) {
-    try {
-      const codes = await scrape(source);
-      codes.forEach((code) => allCodes.add(code));
-      console.log(`  📄 ${source.url} → ${codes.length}件のコードを検出`);
-    } catch (error) {
-      console.error(`  ❌ ${source.url} のスクレイピングに失敗:`, error);
-    }
-  }
+	const allCodes = new Set<string>();
+	for (const source of game.sources) {
+		try {
+			const codes = await scrape(source);
+			codes.forEach((c) => allCodes.add(c));
+			console.log(`  📄 ${source.url} → ${codes.length}件`);
+		} catch (error) {
+			console.error(`  ❌ ${source.url} の取得に失敗:`, error);
+		}
+	}
 
-  if (allCodes.size === 0) {
-    console.log(`  ℹ️  コードが見つかりませんでした`);
-    return;
-  }
+	// 死活監視：0件が続いたら1回だけ警告
+	const streak = await updateZeroStreak(env.CODES, game.id, allCodes.size);
+	if (streak === ZERO_STREAK_ALERT) {
+		await sendHealthWarning(env.DISCORD_WEBHOOK_URL, game, streak);
+	}
+	if (allCodes.size === 0) {
+		console.log(`  ℹ️ コードが見つかりませんでした（連続${streak}回）`);
+		return;
+	}
 
-  // 新規コードのフィルタリング
-  const newCodes = await filterNewCodes(game.id, [...allCodes]);
+	const newCodes = await filterNewCodes(env.CODES, game.id, [...allCodes]);
+	if (newCodes.length === 0) {
+		console.log(`  ✅ 新しいコードはありません（${allCodes.size}件は通知済み）`);
+		return;
+	}
+	console.log(`  🆕 新しいコード: ${newCodes.join(", ")}`);
 
-  if (newCodes.length === 0) {
-    console.log(`  ✅ 新しいコードはありません（${allCodes.size}件は通知済み）`);
-    return;
-  }
-
-  console.log(`  🆕 新しいコード: ${newCodes.length}件`);
-  newCodes.forEach((code) => console.log(`     → ${code}`));
-
-  // Discord通知
-  try {
-    await sendDiscordNotification({ game, newCodes });
-    console.log(`  📨 Discord通知を送信しました`);
-  } catch (error) {
-    console.error(`  ❌ Discord通知の送信に失敗:`, error);
-    // 通知に失敗した場合はストアに保存しない（次回リトライさせる）
-    return;
-  }
-
-  // 通知済みコードをストアに保存
-  await markAsNotified(game.id, newCodes);
-  console.log(`  💾 ${newCodes.length}件のコードを通知済みとして保存しました`);
+	// 通知に失敗したら保存しない（次回リトライ）
+	await sendCodeNotification(env.DISCORD_WEBHOOK_URL, game, newCodes);
+	await markAsNotified(env.CODES, game.id, newCodes);
+	console.log(`  💾 ${newCodes.length}件を通知済みとして保存`);
 }
 
-/**
- * メインエントリーポイント
- */
-async function main(): Promise<void> {
-  validateEnv();
-  console.log("🔍 HoYoverse ギフトコード通知システムを開始します");
-  console.log(`📋 登録ゲーム数: ${gameRegistry.length}`);
+export default {
+	// ブラウザからアクセスされても何もしない
+	async fetch(): Promise<Response> {
+		return new Response("hoyo-code-notifier is running.");
+	},
 
-  for (const game of gameRegistry) {
-    try {
-      await processGame(game);
-    } catch (error) {
-      console.error(`❌ [${game.name}] の処理中にエラーが発生:`, error);
-    }
-  }
-
-  console.log("\n✨ 全ゲームの処理が完了しました");
-}
-
-main().catch((error) => {
-  console.error("致命的なエラー:", error);
-  process.exit(1);
-});
+	// Cron Triggers から呼ばれる本体
+	async scheduled(_controller, env, _ctx): Promise<void> {
+		for (const game of gameRegistry) {
+			try {
+				await processGame(game, env);
+			} catch (error) {
+				console.error(`❌ [${game.name}] の処理中にエラー:`, error);
+			}
+		}
+	},
+} satisfies ExportedHandler<Env>;
