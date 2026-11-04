@@ -57,24 +57,27 @@
 - [x] 本番の初回 Cron 実行を確認（2026-11-04 23:17 JST、スタレ10件・ゼンゼロ5件を通知。Cloudflare の IP からも GameWith 取得OK）
 - [x] 原神を追加（ローカルで6件取得を確認）
 - [ ] 原神を本番デプロイ・初回通知を確認
-- [ ] 旧システムの停止・片付け
+- [x] 旧システムの停止・片付け
   - [x] 作業用コピー `~/hoyo-code-notifier` と移行スクリプトを削除
-  - [ ] GitHub の Secrets 削除、Upstash DB 削除（ブラウザ作業）
+  - [x] GitHub の Secrets 削除、Upstash DB 完全削除（2026-11-04）
 
 ## 次にやること
-1. **原神の本番反映**
-   - `npx wrangler deploy` → 次の毎時17分に原神の掲載中コード（6件）がまとめて通知される
-   - `npx wrangler tail` かダッシュボードの Logs で確認
-2. **ブランチの push と main へのマージ**
-   - `git push -u origin migrate-to-workers` → PR を作って main にマージ（旧ワークフローのファイルが main から消える）
-3. **旧システムの停止**
-   - GitHub の Actions で「Check Gift Codes」は無効のままにする（ワークフローファイルは削除済みなので、main にマージすれば消える）
-   - GitHub の Secrets（UPSTASH_*、DISCORD_WEBHOOK_URL）は不要になったら削除
-   - Upstash のDB（アーカイブ済み）はコンソールから削除してよい
+1. **原神の初回通知を確認**
+   - 原神追加版は 2026-11-04 23:25 にデプロイ済み。次の毎時17分に掲載中コード（6件）がまとめて通知される
+   - 通知メッセージ変更（c92bb7e）は、手動で再デプロイしていなければ未反映。main マージ後の自動デプロイで反映される
+2. **main へのマージ**
+   - `migrate-to-workers` は push 済み。PR を作って main にマージ（旧ワークフローのファイルが main から消える）
+3. **自動デプロイ（Workers Builds）の設定** ※必ずマージ後に行う（main が旧コードのままだと旧コードをデプロイしようとするため）
+   - ダッシュボード → hoyo-code-notifier → Settings → Builds → Connect
+   - Production branch: `main` / Build command: `npx tsc --noEmit` / Deploy command: `npx wrangler deploy`
+   - 以降は main への push ＝ 本番反映。試す変更は別ブランチで（別ブランチは preview 版のアップロードのみ）
 4. **改善候補（任意）**
    - 取得元を2つにする（Game8 など）。`sources` に足せば結果は合算される
    - `fetch` ハンドラは現状メッセージを返すだけ
 
 ## 環境メモ
-- Mac（macOS 27.2）、Node v24.22.2（nodenv）、wrangler 4.157.0
+- Mac（macOS 27.2）、Node v22.14（Claude Code のシェルから見た版）、wrangler 4.157.0
+- `gh`（GitHub CLI）は未インストール。GitHub 操作はブラウザで行う
+- `npx wrangler deploy` は Claude Code の自動モードでブロックされるため、ユーザーが自分のターミナルで実行する
+- Cron の登録にはアカウントの workers.dev サブドメインが必要（作成済み）
 - ユーザーは手順を一つずつ確認しながら進めたい。各ステップでコマンドと意味を説明すること
