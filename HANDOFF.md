@@ -1,6 +1,6 @@
 # 引き継ぎ：HoYoverse ギフトコード通知の Cloudflare Workers 移行
 
-最終更新: 2026-11-04
+最終更新: 2026-11-05
 
 ## 背景
 - 旧システム: このリポジトリの migrate-to-workers 以前の履歴（main の 346008d まで）（GitHub Actions + Upstash Redis + Discord Webhook）
@@ -35,7 +35,8 @@
 
 ## リポジトリについて
 - 場所: `~/std/hoyo-giftcode-notifier`（GitHub: okami408/hoyo-giftcode-notifier）
-- ブランチ `migrate-to-workers` で旧コードを削除し、Workers 版に置き換えた（コミット済み・未push・main 未マージ）
+- ブランチ `migrate-to-workers` で旧コードを削除し、Workers 版に置き換えた → PR #1 で main にマージ済み（2026-11-05）
+- デプロイは Workers Builds による自動デプロイ（main への push で本番反映）
 - 旧コードは main の履歴（346008d まで）に残っている
 - 作業用に作った `~/hoyo-code-notifier` はここにコピー済み。動作確認できたら削除してよい
 
@@ -56,7 +57,11 @@
 - [x] 本番デプロイ（2026-11-04、Version 36062680）
 - [x] 本番の初回 Cron 実行を確認（2026-11-04 23:17 JST、スタレ10件・ゼンゼロ5件を通知。Cloudflare の IP からも GameWith 取得OK）
 - [x] 原神を追加（ローカルで6件取得を確認）
-- [ ] 原神を本番デプロイ・初回通知を確認
+- [x] 原神を本番デプロイ
+- [ ] 原神の初回通知を確認
+- [x] main にマージ（PR #1）
+- [x] Workers Builds で GitHub 連携（Production branch: main）
+- [ ] 自動デプロイの初回ビルド成功を確認
 - [x] 旧システムの停止・片付け
   - [x] 作業用コピー `~/hoyo-code-notifier` と移行スクリプトを削除
   - [x] GitHub の Secrets 削除、Upstash DB 完全削除（2026-11-04）
@@ -65,19 +70,18 @@
 1. **原神の初回通知を確認**
    - 原神追加版は 2026-11-04 23:25 にデプロイ済み。次の毎時17分に掲載中コード（6件）がまとめて通知される
    - 通知メッセージ変更（c92bb7e）は、手動で再デプロイしていなければ未反映。main マージ後の自動デプロイで反映される
-2. **main へのマージ**
-   - `migrate-to-workers` は push 済み。PR を作って main にマージ（旧ワークフローのファイルが main から消える）
-3. **自動デプロイ（Workers Builds）の設定** ※必ずマージ後に行う（main が旧コードのままだと旧コードをデプロイしようとするため）
-   - ダッシュボード → hoyo-code-notifier → Settings → Builds → Connect
-   - Production branch: `main` / Build command: `npx tsc --noEmit` / Deploy command: `npx wrangler deploy`
+2. **自動デプロイの確認**
+   - ダッシュボード → hoyo-code-notifier → Deployments（Builds）で、main への push のビルドが Success になるか確認
+   - 設定: Build command `npx tsc --noEmit` / Deploy command `npx wrangler deploy`
    - 以降は main への push ＝ 本番反映。試す変更は別ブランチで（別ブランチは preview 版のアップロードのみ）
-4. **改善候補（任意）**
+   - 手動の `npx wrangler deploy` は原則不要
+3. **改善候補（任意）**
    - 取得元を2つにする（Game8 など）。`sources` に足せば結果は合算される
    - `fetch` ハンドラは現状メッセージを返すだけ
 
 ## 環境メモ
 - Mac（macOS 27.2）、Node v22.14（Claude Code のシェルから見た版）、wrangler 4.157.0
 - `gh`（GitHub CLI）は未インストール。GitHub 操作はブラウザで行う
-- `npx wrangler deploy` は Claude Code の自動モードでブロックされるため、ユーザーが自分のターミナルで実行する
+- 手動で `npx wrangler deploy` する場合は、Claude Code の自動モードでブロックされるため、ユーザーが自分のターミナルで実行する
 - Cron の登録にはアカウントの workers.dev サブドメインが必要（作成済み）
 - ユーザーは手順を一つずつ確認しながら進めたい。各ステップでコマンドと意味を説明すること
